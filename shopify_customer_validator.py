@@ -2,6 +2,7 @@
 """
 Author: Justin Whatley
 Developper Intern - Wintership 2018 Challenge
+https://backend-challenge-winter-2017.herokuapp.com/
 
 """
 import json
@@ -9,7 +10,8 @@ import urllib.request
 
 def generate_required_key_list(validation_list):
     """
-    Creates a list of all the keys required for a particular customer to ensure that they are not omitted in the customer details
+    Creates a list of all the keys required for a particular customer to ensure that they are not omitted in the customer
+    data fields
     :param validation_list: initial validation object
     :return: list of the required keys
     """
@@ -19,12 +21,6 @@ def generate_required_key_list(validation_list):
             if value['required']:
                 requirement_list.append(key)
     return requirement_list
-
-# def update_customer(response, customer_data):
-#     customer_field_keyword = 'customers'
-#     updated_response = add_key_helper(response, customer_field_keyword, customer_data)
-#     return updated_response
-
 
 def update_invalid_customer(invalid_customer, customer, customer_key):
     """
@@ -89,13 +85,13 @@ def process_customer_data(customers, validation_list):
         for customer_key, customer_value in customer.items():
             if customer_key in required__key_list:
                 # Checks validity of entered fields
-                is_valid = validate_data(customer_key, customer_value, requirement_params[customer_key])
+                is_valid = validate_data(customer_value, requirement_params[customer_key])
                 # Updates invalid fields, if present
                 if not is_valid:
-                    # print('invalid')
                     invalid_customer = update_invalid_customer(invalid_customer, customer, customer_key)
 
-            # Checks that required items are included for each customer
+            # Checks that required items are included for each customer by removing fields from the list as they appear
+            # in customer data
             for requirement in required__key_list:
                 if requirement == customer_key:
                     requirement_list_copy = [x for x in requirement_list_copy if not requirement]
@@ -110,24 +106,24 @@ def process_customer_data(customers, validation_list):
     return response
 
 
-def validate_data(key, value, validation_criteria):
+def validate_data(value, validation_criteria):
     """
     Checks that the stored customer data meets the validation criteria set
     :param value: The value set
     :param validation_criteria: The criteria for acceptance
     :return: boolean where True indicates the value is valid and False indicates it is invalid
     """
+
     #if not required (or required not set), then accept null values for the category
-    is_required = True
-    if 'required' not in validation_criteria or ('required' in validation_criteria and not validation_criteria['required']):
-        is_required = False
+    if 'required' in validation_criteria:
+        if value is None:
+            return False
 
     #checks that the type of the value matches what is specified
-    # print(validation_criteria)
     if 'type' in validation_criteria:
-        # print('checking type')
-        if not validate_type(value, validation_criteria['type'], is_required):
+        if not validate_type(value, validation_criteria['type']):
             return False
+
     #checks that the length of string values
     if 'length' in validation_criteria:
         # fields with this validation can be assumed to be of type String
@@ -136,20 +132,16 @@ def validate_data(key, value, validation_criteria):
     return True
 
 
-def validate_type(value, expected_type, is_required):
+def validate_type(value, expected_type):
     """
     Checks that the type expected matches the value set, when the value is required. If it is not required,
     null is acceptable
     :param value: the value set for a given field
     :param expected_type: the expected type of the value
-    :param is_required: boolean indicating whether the field is required
     :return: boolean indicating that the value is the expected type or not
     """
-    # print(value, expected_type, is_required)
-    if is_required :
-        if value is None:
-            return False
-    elif expected_type == 'string' and type(value) is not str:
+
+    if expected_type == 'string' and type(value) is not str:
         return False
     elif expected_type == 'number' and type(value) is not int and type(value) is not float:
         return False
@@ -187,15 +179,31 @@ def update_page_query_param(customer_data_url_orig, page_counter):
     :param customer_data_url_orig: str original page data url
     :param page_counter: the page number to query
     :return: the page following the given url
-
     """
-
     if page_counter:
         return customer_data_url_orig + '?page=' + str(page_counter + 1)
     else:
         return customer_data_url_orig
 
+def local_test():
+    customer_data_local = "customer_page_3.json"
+
+    # Loads page URL
+    with open(customer_data_local) as url:
+        page_data = json.load(url)
+
+        # Validate customers
+        api_response = process_customer_data(page_data['customers'], page_data['validations'])
+        # api_response['customers'] = page_data['customers']
+        # api_response['pagination'] = page_data['pagination']
+
+        print(json.dumps(api_response))
+
+    exit()
+
 if __name__ == '__main__':
+
+    # local_test()
 
     customer_data_url_orig = "https://backend-challenge-winter-2017.herokuapp.com/customers.json"
     validation_parameters = {}
@@ -213,8 +221,8 @@ if __name__ == '__main__':
 
             # Validate customers
             api_response = process_customer_data(page_data['customers'], page_data['validations'])
-            # api_response['customers'] = page_data['customers']
-            # api_response['pagination'] = page_data['pagination']
+            api_response['customers'] = page_data['customers']
+            api_response['pagination'] = page_data['pagination']
 
             print(json.dumps(api_response))
             page_counter = page_counter + 1
@@ -222,6 +230,8 @@ if __name__ == '__main__':
             # Checks that there are still customers on the following page, otherwise exits the loop
             if not exist_more_customers(page_data['pagination']):
                 break
+
+
 
 
 
